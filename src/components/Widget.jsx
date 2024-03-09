@@ -1,13 +1,11 @@
 import React from "react";
 import { useDrag } from "react-dnd";
 
-const Widget = ({ id, children, removeWidget, index }) => {
+const Widget = ({ id, children, removeWidget, index, type }) => {
   // Destructure the isDragging property from the object returned by the collect function
-  const [{ isDragging }, dragRef, preview] = useDrag({
-    type: "WIDGET",
-    item: () => {
-      return { id, index };
-    },
+  const [{ isDragging }, drag, preview] = useDrag({
+    type: "widget", // You might want to use a constant for types
+    item: { id, index, type },
     collect: (monitor) => ({
       isDragging: !!monitor.isDragging(),
     }),
@@ -15,9 +13,9 @@ const Widget = ({ id, children, removeWidget, index }) => {
 
   return (
     <div
-      ref={dragRef}
-      className="m-4 p-2 h-[200px] bg-white shadow rounded-lg relative"
-      style={{ opacity: isDragging ? 0.5 : 1 }} // Now `isDragging` is defined
+      ref={drag}
+      className="widget m-4 p-2 h-[200px] bg-white shadow rounded-lg relative cursor-pointer"
+      style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       {children}
       <button

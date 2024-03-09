@@ -8,12 +8,13 @@ import DonutChart from "./DonutChartWidget";
 
 const Dashboard = () => {
   const [widgets, setWidgets] = useState([]);
+  const [hoveredWidgetId, setHoveredWidgetId] = useState(null);
 
   const addWidget = useCallback((widgetType) => {
     const newWidget = {
-      id: Date.now(), // Unique ID for key prop
-      type: widgetType, // Type to determine which widget to render
-      content: `Content for ${widgetType}`, // Placeholder content
+      id: Date.now(),
+      type: widgetType,
+      content: `Content for ${widgetType}`,
     };
     setWidgets((prevWidgets) => [...prevWidgets, newWidget]);
   }, []);
@@ -24,40 +25,46 @@ const Dashboard = () => {
     );
   }, []);
 
-  const moveWidget = useCallback((draggedId, hoverId) => {
+  const moveWidget = useCallback((dragId, hoverId) => {
     setWidgets((prevWidgets) => {
-      const draggedIndex = prevWidgets.findIndex((w) => w.id === draggedId);
+      const dragIndex = prevWidgets.findIndex((w) => w.id === dragId);
       const hoverIndex = prevWidgets.findIndex((w) => w.id === hoverId);
+      if (dragIndex === -1 || hoverIndex === -1) {
+        return prevWidgets; // Invalid drag or hover index
+      }
 
-      if (draggedIndex === hoverIndex) return prevWidgets; // No move needed
-
+      // Swapping widgets
       const result = Array.from(prevWidgets);
-      const [removed] = result.splice(draggedIndex, 1);
-      result.splice(hoverIndex, 0, removed);
+      const temp = result[dragIndex];
+      result[dragIndex] = result[hoverIndex];
+      result[hoverIndex] = temp;
 
       return result;
     });
   }, []);
 
   const [, drop] = useDrop({
-    accept: "WIDGET",
-    hover(item, monitor) {
-      const dragIndex = item.index;
-      const hoverIndex = widgets.findIndex(
-        (w) => w.id === monitor.getItem().id
-      );
+    accept: "widget",
+    hover: (item, monitor) => {
+      const dragIndex = widgets.findIndex((w) => w.id === item.id);
+      const hoverIndex = widgets.findIndex((w) => w.id === hoveredWidgetId);
 
-      // Ensure dragIndex is updated during the drag operation
-      if (dragIndex === hoverIndex) {
-        return;
+      // Set the hovered widget ID for potential drop
+      if (monitor.isOver()) {
+        const hoverId = monitor.getItem().id;
+        setHoveredWidgetId(hoverId); // Update state with currently hovered widget's ID
       }
-
-      // Perform the swap
-      moveWidget(dragIndex, hoverIndex);
-
-      // Update the dragging item's index to reflect new position
-      item.index = hoverIndex;
     },
+    drop: (item, monitor) => {
+      if (!monitor.didDrop() && hoveredWidgetId !== null) {
+        moveWidget(item.id, hoveredWidgetId);
+      }
+      setHoveredWidgetId(null); // Reset hovered widget ID after drop
+    },
+    collect: (monitor) => ({
+      isOver: !!monitor.isOver(),
+      canDrop: !!monitor.canDrop(),
+    }),
   });
 
   const renderWidget = (widget, index) => {
@@ -73,17 +80,16 @@ const Dashboard = () => {
         Component = HorizontalBarChart;
         break;
       default:
-        Component = () => <div key={index}>{widget.content}</div>;
+        Component = () => <div>{widget.content}</div>;
     }
 
     return (
       <Widget
         key={widget.id}
         id={widget.id}
-        type="WIDGET"
         removeWidget={removeWidget}
-        index={index} // Ensure this index is used correctly in Widget for drag logic
-        moveWidget={moveWidget}
+        index={index}
+        type={widget.type}
       >
         <Component {...widget} />
       </Widget>
@@ -93,7 +99,15 @@ const Dashboard = () => {
   return (
     <div className="flex">
       <Sidebar addWidget={addWidget} />
-      <div ref={drop} className="flex-1 flex flex-wrap">
+      <div
+        ref={drop}
+        className="widget-area w-full h-full"
+        style={
+          {
+            // backgroundColor: isOver && canDrop ? "lightgreen" : "lightgrey",
+          }
+        }
+      >
         {widgets.map((widget, index) => renderWidget(widget, index))}
       </div>
     </div>
