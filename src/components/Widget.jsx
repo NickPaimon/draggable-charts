@@ -2,9 +2,8 @@ import React from "react";
 import { useDrag } from "react-dnd";
 
 const Widget = ({ id, children, removeWidget, index, type }) => {
-  // Destructure the isDragging property from the object returned by the collect function
-  const [{ isDragging }, drag, preview] = useDrag({
-    type: "widget", // You might want to use a constant for types
+  const [{ isDragging }, drag] = useDrag({
+    type: "widget",
     item: { id, index, type },
     collect: (monitor) => ({
       isDragging: !!monitor.isDragging(),

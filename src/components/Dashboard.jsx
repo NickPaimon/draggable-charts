@@ -8,12 +8,13 @@ import DonutChart from "./DonutChartWidget";
 
 const Dashboard = () => {
   const [widgets, setWidgets] = useState([]);
-  const [hoveredWidgetId, setHoveredWidgetId] = useState(null);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   const addWidget = useCallback((widgetType) => {
     const newWidget = {
       id: Date.now(),
-      type: widgetType,
+      type: "widget",
+      name: widgetType,
       content: `Content for ${widgetType}`,
     };
     setWidgets((prevWidgets) => [...prevWidgets, newWidget]);
@@ -25,20 +26,14 @@ const Dashboard = () => {
     );
   }, []);
 
-  const moveWidget = useCallback((dragId, hoverId) => {
+  const moveWidget = useCallback((dragIndex, hoverIndex) => {
+    if (dragIndex === hoverIndex) {
+      return;
+    }
     setWidgets((prevWidgets) => {
-      const dragIndex = prevWidgets.findIndex((w) => w.id === dragId);
-      const hoverIndex = prevWidgets.findIndex((w) => w.id === hoverId);
-      if (dragIndex === -1 || hoverIndex === -1) {
-        return prevWidgets; // Invalid drag or hover index
-      }
-
-      // Swapping widgets
       const result = Array.from(prevWidgets);
-      const temp = result[dragIndex];
-      result[dragIndex] = result[hoverIndex];
-      result[hoverIndex] = temp;
-
+      const [removed] = result.splice(dragIndex, 1);
+      result.splice(hoverIndex, 0, removed);
       return result;
     });
   }, []);
@@ -46,30 +41,25 @@ const Dashboard = () => {
   const [, drop] = useDrop({
     accept: "widget",
     hover: (item, monitor) => {
-      const dragIndex = widgets.findIndex((w) => w.id === item.id);
-      const hoverIndex = widgets.findIndex((w) => w.id === hoveredWidgetId);
+      const dragIndex = item.index;
+      const hoverIndex = widgets.findIndex(
+        (w, i) => monitor.isOver({ shallow: true }) && i === hoveredIndex
+      );
 
-      // Set the hovered widget ID for potential drop
-      if (monitor.isOver()) {
-        const hoverId = monitor.getItem().id;
-        setHoveredWidgetId(hoverId); // Update state with currently hovered widget's ID
+      if (dragIndex !== hoverIndex) {
+        setHoveredIndex(hoverIndex);
+        moveWidget(dragIndex, hoverIndex);
+        item.index = hoverIndex;
       }
     },
-    drop: (item, monitor) => {
-      if (!monitor.didDrop() && hoveredWidgetId !== null) {
-        moveWidget(item.id, hoveredWidgetId);
-      }
-      setHoveredWidgetId(null); // Reset hovered widget ID after drop
+    drop: () => {
+      setHoveredIndex(null);
     },
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-      canDrop: !!monitor.canDrop(),
-    }),
   });
 
   const renderWidget = (widget, index) => {
     let Component;
-    switch (widget.type) {
+    switch (widget.name) {
       case "pieChart":
         Component = PieChart;
         break;
@@ -99,15 +89,7 @@ const Dashboard = () => {
   return (
     <div className="flex">
       <Sidebar addWidget={addWidget} />
-      <div
-        ref={drop}
-        className="widget-area w-full h-full"
-        style={
-          {
-            // backgroundColor: isOver && canDrop ? "lightgreen" : "lightgrey",
-          }
-        }
-      >
+      <div ref={drop} className="widget-area w-full h-full">
         {widgets.map((widget, index) => renderWidget(widget, index))}
       </div>
     </div>
